@@ -1,0 +1,3 @@
+[submodule "decoder-gui/ssdv-ng"]
+	path = decoder-gui/ssdv-ng
+	url = https://github.com/MrTalon63/ssdv-ng.git
