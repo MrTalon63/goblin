@@ -20,17 +20,20 @@ import (
 
 // TileCache manages an HTTP tile server with local caching.
 type TileCache struct {
-	baseDir     string
-	port        int
-	server      *http.Server
-	client      *http.Client
-	semMu       sync.Mutex // guards sem field
-	sem         chan struct{}
-	concurrency int
-	lastReq     time.Time
-	ctx         context.Context
-	cancel      context.CancelFunc
-	wailsCtx    context.Context // set by app startup for EventsEmit
+	baseDir      string
+	port         int
+	server       *http.Server
+	client       *http.Client
+	semMu        sync.Mutex // guards sem field
+	sem          chan struct{}
+	concurrency  int
+	lastReq      time.Time
+	ctx          context.Context
+	cancel       context.CancelFunc
+	wailsCtx     context.Context // set by app startup for EventsEmit
+	memCacheMu   sync.RWMutex
+	memCache     map[string][]byte
+	memCacheKeys []string
 }
 
 // NewTileCache creates a new tile cache manager.
@@ -47,6 +50,7 @@ func NewTileCache(baseDir string, port, concurrency int) *TileCache {
 		sem:         make(chan struct{}, concurrency),
 		ctx:         ctx,
 		cancel:      cancel,
+		memCache:    make(map[string][]byte),
 	}
 }
 
@@ -114,8 +118,19 @@ func (tc *TileCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check in-memory cache first
+	tc.memCacheMu.RLock()
+	if data, ok := tc.memCache[path]; ok {
+		tc.memCacheMu.RUnlock()
+		w.Header().Set("Content-Type", "image/png")
+		w.Write(data)
+		return
+	}
+	tc.memCacheMu.RUnlock()
+
 	tilePath := filepath.Join(tc.baseDir, fmt.Sprintf("%d", z), fmt.Sprintf("%d", x), fmt.Sprintf("%d.png", y))
 	if data, err := os.ReadFile(tilePath); err == nil {
+		tc.addToMemCache(path, data)
 		w.Header().Set("Content-Type", "image/png")
 		w.Write(data)
 		return
@@ -128,6 +143,7 @@ func (tc *TileCache) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	tc.addToMemCache(path, data)
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(data)
 }
@@ -260,7 +276,8 @@ func (tc *TileCache) preload(configJSON string) {
 				data, err := tc.downloadTile(z, x, y)
 				tc.releaseSem(sem)
 				if err == nil {
-					_ = data
+					key := fmt.Sprintf("%d/%d/%d.png", z, x, y)
+					tc.addToMemCache(key, data)
 					loaded++
 					if loaded%10 == 0 || loaded == total {
 						tc.emit(fmt.Sprintf("%d/%d", loaded, total))
@@ -329,4 +346,32 @@ func splitPath(p string) []string {
 		parts = append(parts, cur)
 	}
 	return parts
+}
+
+func (tc *TileCache) addToMemCache(key string, data []byte) {
+	tc.memCacheMu.Lock()
+	defer tc.memCacheMu.Unlock()
+
+	// Limit memory cache to 500 tiles (approx 5-10MB total)
+	maxCacheSize := 500
+	if _, exists := tc.memCache[key]; !exists {
+		if len(tc.memCacheKeys) >= maxCacheSize {
+			// Evict oldest (FIFO)
+			oldest := tc.memCacheKeys[0]
+			tc.memCacheKeys = tc.memCacheKeys[1:]
+			delete(tc.memCache, oldest)
+		}
+		tc.memCacheKeys = append(tc.memCacheKeys, key)
+	}
+	tc.memCache[key] = data
+}
+
+// UpdateBaseDir dynamically updates the local directory path where tiles are stored.
+func (tc *TileCache) UpdateBaseDir(dir string) {
+	tc.memCacheMu.Lock()
+	defer tc.memCacheMu.Unlock()
+	tc.baseDir = dir
+	// Invalidate in-memory cache since the source directory changed
+	tc.memCache = make(map[string][]byte)
+	tc.memCacheKeys = nil
 }

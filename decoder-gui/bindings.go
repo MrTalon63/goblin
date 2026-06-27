@@ -166,6 +166,9 @@ func (a *App) SaveSettings(jsonConfig string) string {
 	a.cfgMu.Lock()
 	a.cfg = newCfg
 	a.session = NewSessionDir(newCfg.SaveDir)
+	if a.tileCache != nil {
+		a.tileCache.UpdateBaseDir(newCfg.TileDir)
+	}
 
 	// Restart receivers under lock
 	for apid, r := range a.udpReceivers {
