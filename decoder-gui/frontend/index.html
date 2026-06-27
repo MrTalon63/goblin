@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Goblin Decoder</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="./src/style.css"/>
+</head>
+<body>
+<div id="app">
+    <div id="titlebar">
+        <h1>Goblin Decoder <span id="app-version"></span></h1>
+        <div id="title-status">
+            <span id="status-uptime">Mission: --</span>
+            <span id="status-recording" class="rec-off">REC</span>
+            <span id="status-payload"></span>
+            <button id="hamburger" title="Menu">☰</button>
+            <div id="hamburger-menu" class="hidden">
+                <button id="btn-rec-start">Start Recording</button>
+                <button id="btn-rec-stop">Stop Recording</button>
+                <button id="btn-clear-cache">Clear Cache</button>
+                <button id="btn-about">About</button>
+                <div id="stats-status" style="padding: 4px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tabbar">
+        <button class="tab-btn active" data-tab="images">Images</button>
+        <button class="tab-btn" data-tab="telemetry">Telemetry</button>
+        <button class="tab-btn" data-tab="statistics">Statistics</button>
+        <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- IMAGES TAB -->
+    <div id="tab-images" class="tab-content active">
+        <div id="image-layout">
+            <div id="image-main">
+                <button id="btn-back-live" class="hidden" title="Back to live view">← Live</button>
+                <canvas id="image-canvas"></canvas>
+                <div id="image-status">
+                    <span id="img-apid">APID: --</span>
+                    <span id="img-id">Img: --</span>
+                    <span id="img-pkts">Pkts: 0</span>
+                    <span id="img-res">Res: --x--</span>
+                    <span id="img-quality">Quality: --</span>
+                    <span id="img-total">History: 0</span>
+                </div>
+            </div>
+            <div id="image-sidebar">
+                <h3>History</h3>
+                <div id="image-history-list">
+                    <div class="empty-msg">No images yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TELEMETRY TAB -->
+    <div id="tab-telemetry" class="tab-content">
+        <div id="telem-layout">
+            <div id="telem-map"></div>
+            <div id="telem-splitter-map" class="vsplitter"></div>
+            <div id="telem-bottom-wrap">
+                <div id="telem-charts-wrap">
+                    <div id="telem-charts">
+                        <div class="chart-box"><canvas id="chart-battery"></canvas></div>
+                        <div class="chart-box"><canvas id="chart-tempInt"></canvas></div>
+                        <div class="chart-box"><canvas id="chart-tempExt"></canvas></div>
+                        <div class="chart-box"><canvas id="chart-altitude"></canvas></div>
+                    </div>
+                </div>
+                <div id="telem-log-wrap">
+                    <div id="telem-log">Waiting for telemetry...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- STATISTICS TAB -->
+    <div id="tab-statistics" class="tab-content">
+        <h3>Statistics</h3>
+        <div id="stats-content">
+            <p>Session Dir: <span id="info-session">--</span></p>
+            <p>Payload Name: <span id="info-payload">--</span></p>
+            <p>Images: <span id="info-images">0</span></p>
+            <table id="apid-table">
+                <thead>
+                    <tr><th>APID</th><th>Type</th><th>Port</th><th>Packets</th></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-content">
+        <h3>Settings</h3>
+
+        <div class="settings-card">
+            <h4>General</h4>
+            <label for="set-save-dir">Save Directory</label>
+            <input type="text" id="set-save-dir" spellcheck="false"/>
+            <label for="set-max-history" style="margin-top:8px;">Max History</label>
+            <input type="number" id="set-max-history" min="1" max="500"/>
+            <label for="set-tile-dir" style="margin-top:8px;">Tile Directory</label>
+            <input type="text" id="set-tile-dir" spellcheck="false"/>
+            <div>
+                <label style="font-size:11px; color:#aaa;">Tile Concurrency (1-20)</label>
+                <input type="number" id="set-tile-concurrency" min="1" max="20" style="width:100%;"/>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h4>Tile Cache</h4>
+            <label>Draw a rectangle on the map to select area, then preload (rate-limited: 2 concurrent, 150ms between requests)</label>
+            <div id="tile-picker-map"></div>
+            <div style="display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+                <div style="flex:1; min-width:200px;">
+                    <label style="font-size:11px; color:#aaa;">Zoom range</label>
+                    <div style="display:flex; gap:4px;">
+                        <input type="number" id="tile-zoom-min" placeholder="Min" min="1" max="19" value="8" style="width:70px;"/>
+                        <input type="number" id="tile-zoom-max" placeholder="Max" min="1" max="19" value="14" style="width:70px;"/>
+                    </div>
+                </div>
+                <button id="btn-preload-tiles" class="save-btn">Preload</button>
+                <button id="btn-cancel-tiles" class="save-btn" style="background:#555;" disabled>Cancel</button>
+            </div>
+            <div id="tile-estimate" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
+            <progress id="tile-progress-bar" value="0" max="100" style="width:100%; margin-top:4px; height:12px; display:none;"></progress>
+            <div id="tile-progress-text" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
+        </div>
+
+        <div class="settings-card">
+            <h4>Advanced</h4>
+            <textarea id="set-json" rows="16" spellcheck="false"></textarea>
+            <button id="btn-save-settings" class="save-btn" style="margin-top:8px;">Save Settings</button>
+            <span id="set-status" style="margin-left:8px;"></span>
+        </div>
+    </div>
+
+    <div id="about-overlay" class="hidden">
+        <div id="about-modal">
+            <button id="about-close" title="Close">&times;</button>
+            <h2>Goblin Decoder <span id="about-version"></span></h2>
+            <p>Desktop application for real-time decoding of <strong>Goblin</strong> payload, which includes images and telemetry from high-altitude balloon payloads.</p>
+            <p style="font-size:12px; color:#aaa;">Built with Wails + Go</p>
+            <a id="about-github" href="https://github.com/MrTalon63/goblin/" target="_blank" rel="noopener" style="color:#e94560; text-decoration:none; font-size:13px;">⭐ Star on GitHub</a>
+        </div>
+    </div>
+</div>
+<script src="./src/main.js" type="module"></script>
+</body>
+</html>
