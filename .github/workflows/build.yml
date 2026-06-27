@@ -25,6 +25,7 @@ jobs:
             os: windows-latest
             platform: windows/amd64
             wails_flags: "-nsis"
+            wails_upx: "-upx"
             artifact_name: windows-amd64
             is_linux: false
             is_mac: false
@@ -34,6 +35,7 @@ jobs:
             os: windows-latest
             platform: windows/arm64
             wails_flags: "-nsis"
+            wails_upx: "-upx"
             artifact_name: windows-arm64
             is_linux: false
             is_mac: false
@@ -43,6 +45,7 @@ jobs:
             os: ubuntu-22.04
             platform: linux/amd64
             wails_flags: ""
+            wails_upx: "-upx"
             artifact_name: linux-legacy-amd64
             is_linux: true
             is_mac: false
@@ -52,6 +55,7 @@ jobs:
             os: ubuntu-24.04
             platform: linux/amd64
             wails_flags: "-tags webkit2_41"
+            wails_upx: "-upx"
             artifact_name: linux-latest-amd64
             is_linux: true
             is_mac: false
@@ -61,24 +65,27 @@ jobs:
             os: ubuntu-24.04-arm
             platform: linux/arm64
             wails_flags: "-tags webkit2_41"
+            wails_upx: "-upx"
             artifact_name: linux-latest-arm64
             is_linux: true
             is_mac: false
 
           # macOS Intel
-          - name: macos-amd64
-            os: macos-13
-            platform: darwin/amd64
-            wails_flags: ""
-            artifact_name: macos-amd64
-            is_linux: false
-            is_mac: true
+#          - name: macos-amd64
+#            os: macos-13
+#            platform: darwin/amd64
+#            wails_flags: ""
+#            wails_upx: ""
+#            artifact_name: macos-amd64
+#            is_linux: false
+#            is_mac: true
 
           # macOS ARM64
           - name: macos-arm64
             os: macos-latest
             platform: darwin/arm64
             wails_flags: ""
+            wails_upx: ""
             artifact_name: macos-arm64
             is_linux: false
             is_mac: true
@@ -105,10 +112,10 @@ jobs:
         if: ${{ startsWith(matrix.platform, 'windows/') }}
         run: choco install -y upx
 
-      # Install macOS UPX
-      - name: Install UPX (macOS)
-        if: ${{ matrix.is_mac }}
-        run: brew install upx
+      # Install Windows NSIS (required to build installer)
+      - name: Install NSIS (Windows)
+        if: ${{ startsWith(matrix.platform, 'windows/') }}
+        uses: negrutiu/nsis-install@v2
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -131,7 +138,7 @@ jobs:
       - name: Build Wails App
         run: |
           cd decoder-gui
-          wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }} -upx
+          wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }} ${{ matrix.wails_upx }}
         shell: bash
 
       # Windows Packaging
