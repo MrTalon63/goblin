@@ -130,7 +130,7 @@ jobs:
           path: |
             ~/go/bin/wails
             ~/go/bin/wails.exe
-          key: ${{ runner.os }}-wails-cli-v2.12.0
+          key: ${{ runner.os }}-${{ runner.arch }}-wails-cli-v2.12.0
 
       - name: Install Wails CLI
         if: steps.cache-wails.outputs.cache-hit != 'true'
@@ -159,9 +159,9 @@ jobs:
         if: ${{ startsWith(matrix.platform, 'windows/') }}
         run: |
           mkdir -p package-dir
-          cp decoder-gui/build/bin/goblin-decoder.exe package-dir/goblin-decoder-${{ matrix.name }}.exe
+          cp "decoder-gui/build/bin/Goblin Decoder.exe" "package-dir/Goblin Decoder-${{ matrix.name }}.exe"
           PLATFORM_ARCH=$(echo "${{ matrix.platform }}" | cut -d'/' -f2)
-          cp decoder-gui/build/bin/goblin-decoder-${PLATFORM_ARCH}-installer.exe package-dir/goblin-decoder-${{ matrix.name }}-installer.exe
+          cp "decoder-gui/build/bin/Goblin Decoder-${PLATFORM_ARCH}-installer.exe" "package-dir/Goblin Decoder-${{ matrix.name }}-installer.exe"
         shell: bash
 
       # Linux Packaging
@@ -169,7 +169,7 @@ jobs:
         if: ${{ matrix.is_linux }}
         run: |
           mkdir -p package-dir
-          tar -czf package-dir/goblin-decoder-${{ matrix.name }}.tar.gz -C decoder-gui/build/bin goblin-decoder
+          tar -czf "package-dir/Goblin Decoder-${{ matrix.name }}.tar.gz" -C decoder-gui/build/bin "Goblin Decoder"
 
       # macOS Packaging
       - name: Prepare macOS Artifacts
@@ -177,7 +177,7 @@ jobs:
         run: |
           mkdir -p package-dir
           cd decoder-gui/build/bin
-          zip -r ../../../package-dir/goblin-decoder-${{ matrix.name }}.zip goblin-decoder.app
+          zip -r "../../../package-dir/Goblin Decoder-${{ matrix.name }}.zip" "Goblin Decoder.app"
         shell: bash
 
       - name: Upload Artifacts
