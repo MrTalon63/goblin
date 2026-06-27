@@ -1,7 +1,7 @@
 import './style.css';
 
 import {EventsOn, EventsEmit, BrowserOpenURL} from '../wailsjs/runtime/runtime';
-import {TelemetrySnapshot, GetHistory, GetLatestImageInfo, GetSettings, SaveSettings, StartRecording, StopRecording, ClearCache, GetSessionPath, GetPayloadName, GetTileServerURL, PreloadTiles, EstimateTiles, UpdateRateLimit, CancelPreload, GetVersion} from '../wailsjs/go/main/App';
+import {TelemetrySnapshot, GetHistory, GetLatestImageInfo, GetSettings, SaveSettings, StartRecording, StopRecording, ClearCache, GetSessionPath, GetPayloadName, GetTileServerURL, PreloadTiles, EstimateTiles, UpdateRateLimit, CancelPreload, GetVersion, SelectDirectory} from '../wailsjs/go/main/App';
 
 // ---- Tab switching ----
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -331,6 +331,20 @@ function populateSimpleFields(parsed) {
     if (setTileDir) setTileDir.value = parsed.tile_dir || 'tiles';
     if (setTileConcurrency) setTileConcurrency.value = parsed.tile_concurrency || 2;
 }
+
+document.getElementById('btn-choose-save-dir').addEventListener('click', async () => {
+    const dir = await SelectDirectory("Select Save Directory");
+    if (dir) {
+        setSaveDir.value = dir;
+    }
+});
+
+document.getElementById('btn-choose-tile-dir').addEventListener('click', async () => {
+    const dir = await SelectDirectory("Select Tile Directory");
+    if (dir) {
+        setTileDir.value = dir;
+    }
+});
 
 // ---- Hamburger menu actions ----
 const statsStatus = document.getElementById('stats-status');

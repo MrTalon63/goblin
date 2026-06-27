@@ -127,10 +127,21 @@ jobs:
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
         shell: bash
 
+      - name: Determine Version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            VERSION="${{ github.ref_name }}"
+          else
+            VERSION="nightly-${GITHUB_SHA::7}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Build Wails App
         run: |
           cd decoder-gui
-          wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }} ${{ matrix.wails_upx }}
+          wails build -platform ${{ matrix.platform }} ${{ matrix.wails_flags }} ${{ matrix.wails_upx }} -ldflags "-X main.Version=${{ steps.version.outputs.version }}"
         shell: bash
 
       # Windows Packaging

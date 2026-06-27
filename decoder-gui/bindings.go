@@ -336,3 +336,16 @@ func (a *App) GetLatestImageInfo() string {
 	}
 	return string(b)
 }
+
+// SelectDirectory opens a native directory chooser dialog and returns the selected path
+func (a *App) SelectDirectory(title string) string {
+	dir, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: title,
+	})
+	if err != nil {
+		log.Printf("Error opening directory dialog: %v", err)
+		return ""
+	}
+	return dir
+}
+

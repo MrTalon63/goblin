@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 )
 
 // APIDConfig defines the configuration for a single APID.
@@ -33,6 +34,10 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
 	return Config{
 		APIDs: map[int]APIDConfig{
 			0:  {Port: 9000, Enabled: true, Type: APIDTypeTiming},
@@ -41,12 +46,12 @@ func DefaultConfig() Config {
 			10: {Port: 9010, Enabled: true, Type: APIDTypeSSDV},
 			11: {Port: 9011, Enabled: true, Type: APIDTypeSSDV},
 		},
-		CacheFile:       "packets.ssdv",
+		CacheFile:       filepath.Join(home, "packets.ssdv"),
 		WinWidth:        800,
 		WinHeight:       600,
-		SaveDir:         "data",
+		SaveDir:         filepath.Join(home, "goblin-data"),
 		MaxHistory:      50,
-		TileDir:         "tiles",
+		TileDir:         filepath.Join(home, "goblin-tiles"),
 		TilePort:        0,
 		TileConcurrency: 2,
 	}
