@@ -34,10 +34,14 @@ type Config struct {
 }
 
 func DefaultConfig() Config {
-	home, err := os.UserHomeDir()
+	dir, err := os.UserConfigDir()
 	if err != nil {
-		home = "."
+		dir, err = os.UserHomeDir()
+		if err != nil {
+			dir = "."
+		}
 	}
+	baseDir := filepath.Join(dir, "goblin_decoder")
 	return Config{
 		APIDs: map[int]APIDConfig{
 			0:  {Port: 9000, Enabled: true, Type: APIDTypeTiming},
@@ -46,12 +50,12 @@ func DefaultConfig() Config {
 			10: {Port: 9010, Enabled: true, Type: APIDTypeSSDV},
 			11: {Port: 9011, Enabled: true, Type: APIDTypeSSDV},
 		},
-		CacheFile:       filepath.Join(home, "packets.ssdv"),
+		CacheFile:       filepath.Join(baseDir, "packets.ssdv"),
 		WinWidth:        800,
 		WinHeight:       600,
-		SaveDir:         filepath.Join(home, "goblin-data"),
+		SaveDir:         filepath.Join(baseDir, "data"),
 		MaxHistory:      50,
-		TileDir:         filepath.Join(home, "goblin-tiles"),
+		TileDir:         filepath.Join(baseDir, "tiles"),
 		TilePort:        0,
 		TileConcurrency: 2,
 	}
@@ -61,7 +65,14 @@ func ConfigPath() string {
 	if p := os.Getenv("GOBLIN_CONFIG"); p != "" {
 		return p
 	}
-	return "config.json"
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir, err = os.UserHomeDir()
+		if err != nil {
+			dir = "."
+		}
+	}
+	return filepath.Join(dir, "goblin_decoder", "config.json")
 }
 
 func LoadConfig() Config {
@@ -124,6 +135,9 @@ func LoadConfig() Config {
 
 func SaveConfig(c Config) error {
 	p := ConfigPath()
+	if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
+		return err
+	}
 	tmp := p + ".tmp"
 	f, err := os.Create(tmp)
 	if err != nil {
