@@ -31,15 +31,6 @@ jobs:
             is_linux: false
             is_mac: false
 
-          # Windows ARM64
-          - name: windows-arm64
-            os: windows-latest
-            platform: windows/arm64
-            wails_flags: "-nsis"
-            wails_upx: "-upx"
-            artifact_name: windows-arm64
-            is_linux: false
-            is_mac: false
 
           # Linux 22.04 Legacy (Intel)
           - name: linux-legacy-amd64
@@ -148,7 +139,8 @@ jobs:
         run: |
           mkdir -p package-dir
           cp decoder-gui/build/bin/decoder-gui.exe package-dir/decoder-gui-${{ matrix.name }}.exe
-          cp decoder-gui/build/bin/decoder-gui-installer.exe package-dir/decoder-gui-${{ matrix.name }}-installer.exe
+          PLATFORM_ARCH=$(echo "${{ matrix.platform }}" | cut -d'/' -f2)
+          cp decoder-gui/build/bin/decoder-gui-${PLATFORM_ARCH}-installer.exe package-dir/decoder-gui-${{ matrix.name }}-installer.exe
         shell: bash
 
       # Linux Packaging
