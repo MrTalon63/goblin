@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Goblin Telemetry Central</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --border-width: 1px;
+            --border-style: solid;
+            --border-color: #cbd5e1;
+            --bg-color: #ffffff;
+            --header-bg: #f8fafc;
+            --text-color: #0f172a;
+            --accent-color: #ff3366;
+            --offline-color: #94a3b8;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Courier New', Courier, monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #sidebar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 280px;
+            width: 320px;
+            border-right: var(--border-width) var(--border-style) var(--border-color);
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-color);
+            z-index: 1000;
+            transition: width 0.15s ease-out;
+            overflow: hidden;
+        }
+
+        #sidebar.collapsed {
+            width: 40px;
+        }
+
+        #sidebar.collapsed .sidebar-content {
+            display: none;
+        }
+
+        #sidebar.collapsed .sidebar-title {
+            display: none;
+        }
+
+        #sidebar.collapsed .sidebar-header {
+            justify-content: center;
+            padding: 10px 0;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            background-color: var(--header-bg);
+            border-bottom: var(--border-width) var(--border-style) var(--border-color);
+            font-weight: bold;
+            font-size: 13px;
+            height: 40px;
+        }
+
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 320px;
+            right: 0;
+            bottom: 280px;
+            z-index: 1;
+            transition: left 0.15s ease-out;
+        }
+
+        #sidebar.collapsed~#map {
+            left: 40px;
+        }
+
+        #charts-panel {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 280px;
+            border-top: var(--border-width) var(--border-style) var(--border-color);
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 999;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            background-color: var(--header-bg);
+            border-bottom: var(--border-width) var(--border-style) var(--border-color);
+            font-weight: bold;
+            font-size: 13px;
+            height: 40px;
+        }
+
+        .panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            background-color: var(--bg-color);
+        }
+
+        .btn-mono {
+            background-color: var(--bg-color);
+            border: var(--border-width) var(--border-style) var(--border-color);
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 12px;
+            padding: 4px 10px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .btn-mono:hover {
+            background-color: #f1f5f9;
+            color: var(--text-color);
+        }
+
+        .btn-csv-block {
+            width: 100%;
+            padding: 10px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+
+        .receiver-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .receiver-card {
+            border: var(--border-width) var(--border-style) var(--border-color);
+            padding: 10px;
+            background-color: var(--bg-color);
+        }
+
+        .receiver-card.offline {
+            border-color: var(--offline-color);
+            color: var(--offline-color);
+            opacity: 0.6;
+        }
+
+        .receiver-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .receiver-card-header .status-tag {
+            font-size: 9px;
+            padding: 1px 4px;
+            border: 1px solid var(--border-color);
+            background-color: #00f5a0;
+            color: #000;
+        }
+
+        .receiver-card.offline .receiver-card-header .status-tag {
+            background-color: #ccc;
+            color: #555;
+            border-color: var(--offline-color);
+        }
+
+        .receiver-info {
+            font-size: 11px;
+            margin: 2px 0;
+        }
+
+        .receiver-count {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 10px;
+            background-color: var(--header-bg);
+            padding: 2px 6px;
+            border: 1px dashed var(--border-color);
+            font-weight: bold;
+        }
+
+        .receiver-card.offline .receiver-count {
+            border-color: var(--offline-color);
+        }
+
+        .charts-row {
+            display: flex;
+            width: 100%;
+            height: 100%;
+            gap: 12px;
+        }
+
+        .chart-container {
+            flex: 1;
+            min-width: 0;
+            height: 100%;
+            border: var(--border-width) var(--border-style) var(--border-color);
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-container h4 {
+            font-size: 11px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            text-align: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 4px;
+            background-color: var(--header-bg);
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+            position: relative;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 4px !important;
+            border: var(--border-width) var(--border-style) var(--border-color) !important;
+            font-family: var(--font-sans) !important;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        .leaflet-popup-tip {
+            border: var(--border-width) var(--border-style) var(--border-color) !important;
+            background: #ffffff !important;
+            box-shadow: none !important;
+        }
+
+        .pulse-marker {
+            background-color: var(--accent-color);
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+        }
+
+        #export-modal {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(15, 23, 42, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background-color: var(--bg-color);
+            border: var(--border-width) var(--border-style) var(--border-color);
+            border-radius: 6px;
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background-color: var(--header-bg);
+            border-bottom: var(--border-width) var(--border-style) var(--border-color);
+            font-weight: bold;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-family: var(--font-sans);
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 14px;
+            color: var(--offline-color);
+        }
+
+        .btn-close:hover {
+            color: var(--text-color);
+        }
+
+        .modal-body {
+            padding: 16px;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: var(--border-width) var(--border-style) var(--border-color);
+            border-radius: 4px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            margin-bottom: 12px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .modal-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-title">STATIONS</span>
+            <button class="btn-mono" id="btn-toggle-sidebar" onclick="toggleSidebar()">[-]</button>
+        </div>
+        <div class="sidebar-content">
+            <button class="btn-mono btn-csv-block" onclick="openExportModal()">Export Data</button>
+            <div id="receivers" class="receiver-list">
+                <div style="font-size: 12px; color: var(--offline-color);">No stations connected.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="export-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Export Telemetry</span>
+                <button class="btn-close" onclick="closeExportModal()">[x]</button>
+            </div>
+            <div class="modal-body" id="modal-phase-auth">
+                <p style="font-size: 12px; margin-bottom: 10px; color: var(--offline-color);">Enter admin password to
+                    unlock telemetry downloads:</p>
+                <input type="password" id="modal-pw" class="modal-input" placeholder="Password...">
+                <button class="btn-mono" style="width: 100%; padding: 8px;"
+                    onclick="authenticateExport()">Unlock</button>
+            </div>
+            <div class="modal-body" id="modal-phase-links" style="display: none;">
+                <p style="font-size: 12px; margin-bottom: 12px; color: var(--offline-color);">Choose a data package
+                    format to download:</p>
+                <button class="btn-mono btn-csv-block" style="margin-bottom: 8px;" onclick="downloadData('apid0')">Time
+                    Sync (APID 0 CSV)</button>
+                <button class="btn-mono btn-csv-block" style="margin-bottom: 8px;" onclick="downloadData('apid1')">Core
+                    Telemetry (APID 1 CSV)</button>
+                <button class="btn-mono btn-csv-block" style="margin-bottom: 8px;"
+                    onclick="downloadData('apid2')">Payload Metadata (APID 2 CSV)</button>
+                <button class="btn-mono btn-csv-block" style="margin-bottom: 8px;" onclick="downloadData('db')">Raw
+                    Database (SQLite telemetry.db)</button>
+                <button class="btn-mono btn-csv-block" style="margin-bottom: 16px;"
+                    onclick="downloadData('all')">Combined Data (Legacy CSV)</button>
+                <div
+                    style="border-top: var(--border-width) var(--border-style) var(--border-color); padding-top: 12px;">
+                    <button class="btn-mono btn-csv-block"
+                        style="margin-bottom: 0; border-color: var(--accent-color); color: var(--accent-color);"
+                        onclick="clearDatabase()">Clear Database</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="charts-panel">
+        <div class="panel-header">
+            <span style="text-transform: uppercase; letter-spacing: 0.5px;">TELEMETRY CHARTS</span>
+            <span id="global-stats-text" style="font-weight: normal; margin-left: 20px; font-size: 11px;">WAITING FOR
+                TELEMETRY DATA...</span>
+            <label
+                style="margin-left: auto; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px; user-select: none;">
+                <input type="checkbox" id="chk-track" checked style="cursor: pointer;"> Auto-track Balloon
+            </label>
+        </div>
+        <div class="panel-body">
+            <div class="charts-row">
+                <div class="chart-container">
+                    <h4>Altitude (m)</h4>
+                    <div class="canvas-wrapper">
+                        <canvas id="altChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h4>Battery (V)</h4>
+                    <div class="canvas-wrapper">
+                        <canvas id="battChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h4>Temp (°C)</h4>
+                    <div class="canvas-wrapper">
+                        <canvas id="tempChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h4>Sats</h4>
+                    <div class="canvas-wrapper">
+                        <canvas id="satsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const map = L.map('map', { zoomControl: false }).setView([52.2297, 21.0122], 8);
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OSM contributors'
+        }).addTo(map);
+
+        let pathLine = L.polyline([], { color: '#ff3366', weight: 4, opacity: 0.9 }).addTo(map);
+        let balloonMarker = null;
+        let receiverMarkers = new Map();
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const btn = document.getElementById('btn-toggle-sidebar');
+            sidebar.classList.toggle('collapsed');
+
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            btn.textContent = isCollapsed ? '[+]' : '[-]';
+
+            setTimeout(() => {
+                map.invalidateSize();
+                altChart.resize();
+                battChart.resize();
+                tempChart.resize();
+                satsChart.resize();
+            }, 180);
+        }
+
+        let unlockedPassword = "";
+
+        function openExportModal() {
+            document.getElementById('export-modal').style.display = 'flex';
+            if (unlockedPassword === "") {
+                document.getElementById('modal-phase-auth').style.display = 'block';
+                document.getElementById('modal-phase-links').style.display = 'none';
+                document.getElementById('modal-pw').value = '';
+                document.getElementById('modal-pw').focus();
+            } else {
+                document.getElementById('modal-phase-auth').style.display = 'none';
+                document.getElementById('modal-phase-links').style.display = 'block';
+            }
+        }
+
+        function closeExportModal() {
+            document.getElementById('export-modal').style.display = 'none';
+        }
+
+        function authenticateExport() {
+            const pw = document.getElementById('modal-pw').value;
+            if (!pw) {
+                alert("Password is required");
+                return;
+            }
+            unlockedPassword = pw;
+            document.getElementById('modal-phase-auth').style.display = 'none';
+            document.getElementById('modal-phase-links').style.display = 'block';
+        }
+
+        function downloadData(type) {
+            if (!unlockedPassword) {
+                alert("Please authenticate first");
+                return;
+            }
+            let url = "";
+            let filename = "";
+
+            if (type === 'apid0') {
+                url = `/api/telemetry/csv/apid0?password=${encodeURIComponent(unlockedPassword)}`;
+                filename = "telemetry_timesync_apid0.csv";
+            } else if (type === 'apid1') {
+                url = `/api/telemetry/csv/apid1?password=${encodeURIComponent(unlockedPassword)}`;
+                filename = "telemetry_core_apid1.csv";
+            } else if (type === 'apid2') {
+                url = `/api/telemetry/csv/apid2?password=${encodeURIComponent(unlockedPassword)}`;
+                filename = "telemetry_payload_apid2.csv";
+            } else if (type === 'db') {
+                url = `/api/telemetry/db?password=${encodeURIComponent(unlockedPassword)}`;
+                filename = "telemetry.db";
+            } else {
+                url = `/api/telemetry/csv?password=${encodeURIComponent(unlockedPassword)}`;
+                filename = "telemetry.csv";
+            }
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function clearDatabase() {
+            if (!unlockedPassword) {
+                alert("Please authenticate first");
+                return;
+            }
+            if (confirm("WARNING: This will permanently delete all telemetry packets and ground station history from the server database. Are you sure?")) {
+                fetch(`/api/telemetry/clear?password=${encodeURIComponent(unlockedPassword)}`, {
+                    method: 'POST'
+                })
+                    .then(async r => {
+                        if (r.ok) {
+                            alert("Database cleared successfully!");
+                            closeExportModal();
+
+                            pathLine.setLatLngs([]);
+                            if (balloonMarker) {
+                                map.removeLayer(balloonMarker);
+                                balloonMarker = null;
+                            }
+                            for (const [id, marker] of receiverMarkers.entries()) {
+                                map.removeLayer(marker);
+                            }
+                            receiverMarkers.clear();
+
+                            altChart.data.labels = [];
+                            altChart.data.datasets[0].data = [];
+                            altChart.update();
+
+                            battChart.data.labels = [];
+                            battChart.data.datasets[0].data = [];
+                            battChart.update();
+
+                            tempChart.data.labels = [];
+                            tempChart.data.datasets[0].data = [];
+                            tempChart.data.datasets[1].data = [];
+                            tempChart.update();
+
+                            satsChart.data.labels = [];
+                            satsChart.data.datasets[0].data = [];
+                            satsChart.update();
+
+                            document.getElementById('global-stats-text').textContent = "WAITING FOR TELEMETRY DATA...";
+                            document.getElementById('receivers').innerHTML = '<div style="font-size: 12px; color: var(--offline-color);">No stations connected.</div>';
+                        } else {
+                            alert("Failed to clear database: " + await r.text());
+                        }
+                    })
+                    .catch(err => {
+                        alert("Error: " + err.message);
+                    });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const pwInput = document.getElementById('modal-pw');
+            if (pwInput) {
+                pwInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        authenticateExport();
+                    }
+                });
+            }
+        });
+
+        let altChart, battChart, tempChart, satsChart;
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        grid: { color: '#e0e0e0', drawTicks: false },
+                        ticks: { color: '#000000', font: { family: varStyle('--font-sans'), size: 9 }, maxTicksLimit: 6 }
+                    },
+                    y: {
+                        grid: { color: '#e0e0e0' },
+                        ticks: { color: '#000000', font: { family: varStyle('--font-sans'), size: 9 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            };
+
+            function varStyle(name) {
+                return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            }
+
+            altChart = new Chart(document.getElementById('altChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: '#000000', borderWidth: 2, fill: false, pointRadius: 1, tension: 0.1 }] },
+                options: chartOptions
+            });
+
+            battChart = new Chart(document.getElementById('battChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: '#000000', borderWidth: 2, fill: false, pointRadius: 1, tension: 0.1 }] },
+                options: chartOptions
+            });
+
+            tempChart = new Chart(document.getElementById('tempChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Int', data: [], borderColor: '#ff3366', borderWidth: 2, fill: false, pointRadius: 1, tension: 0.1 },
+                        { label: 'Ext', data: [], borderColor: '#000000', borderWidth: 2, borderDash: [4, 4], fill: false, pointRadius: 1, tension: 0.1 }
+                    ]
+                },
+                options: {
+                    ...chartOptions,
+                    plugins: {
+                        legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { family: varStyle('--font-sans'), size: 8 } } }
+                    }
+                }
+            });
+
+            satsChart = new Chart(document.getElementById('satsChart').getContext('2d'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ data: [], borderColor: '#000000', borderWidth: 2, fill: false, pointRadius: 1, tension: 0.1 }] },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            ticks: {
+                                ...chartOptions.scales.y.ticks,
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        async function updateData() {
+            try {
+                const [recRes, telRes] = await Promise.all([
+                    fetch('/api/receivers'),
+                    fetch('/api/telemetry')
+                ]);
+
+                const receivers = await recRes.json();
+                const packets = await telRes.json();
+
+                const listEl = document.getElementById('receivers');
+                if (receivers.length === 0) {
+                    listEl.innerHTML = '<div style="font-size: 12px; color: var(--offline-color);">No stations connected.</div>';
+                } else {
+                    listEl.innerHTML = '';
+                    const now = new Date();
+
+                    receivers.forEach(r => {
+                        const lastSeen = new Date(r.last_seen);
+                        const isOffline = (now - lastSeen) / 1000 > 60;
+
+                        const card = document.createElement('div');
+                        card.className = `receiver-card ${isOffline ? 'offline' : ''}`;
+                        card.innerHTML = `
+                            <div class="receiver-card-header">
+                                <span>${r.nickname.toUpperCase()}</span>
+                                <span class="status-tag">${isOffline ? 'OFFLINE' : 'ACTIVE'}</span>
+                            </div>
+                            <div class="receiver-info">UUID: ${r.id.slice(0, 8)}...</div>
+                            <div class="receiver-info">POS: ${r.lat?.toFixed(5) || '--'}, ${r.lon?.toFixed(5) || '--'}</div>
+                            <div class="receiver-info">ANT: ${r.antenna || '--'}</div>
+                            <div class="receiver-info">DEV: ${r.radio || '--'}</div>
+                            <div class="receiver-count">PKTS: ${r.packet_count}</div>
+                        `;
+                        listEl.appendChild(card);
+
+                        if (r.lat !== null && r.lon !== null) {
+                            const markerUrl = isOffline
+                                ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png'
+                                : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-black.png';
+
+                            const icon = L.icon({
+                                iconUrl: markerUrl,
+                                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                                iconSize: [25, 41],
+                                iconAnchor: [12, 41],
+                                popupAnchor: [1, -34],
+                                shadowSize: [41, 41]
+                            });
+
+                            if (receiverMarkers.has(r.id)) {
+                                const marker = receiverMarkers.get(r.id);
+                                marker.setLatLng([r.lat, r.lon]);
+                                marker.setIcon(icon);
+                            } else {
+                                const marker = L.marker([r.lat, r.lon], { icon }).addTo(map)
+                                    .bindPopup(`<b>STATION: ${r.nickname.toUpperCase()}</b><br>Radio: ${r.radio}<br>Antenna: ${r.antenna}`);
+                                receiverMarkers.set(r.id, marker);
+                            }
+                        }
+                    });
+
+                    const activeIds = new Set(receivers.map(r => r.id));
+                    for (const [id, marker] of receiverMarkers.entries()) {
+                        if (!activeIds.has(id)) {
+                            map.removeLayer(marker);
+                            receiverMarkers.delete(id);
+                        }
+                    }
+                }
+
+                if (packets.length > 0) {
+                    const validCoords = packets
+                        .filter(p => p.latitude !== null && p.longitude !== null)
+                        .map(p => [p.latitude, p.longitude]);
+
+                    pathLine.setLatLngs(validCoords);
+
+                    const lastGPS = packets.find(p => p.latitude !== null && p.longitude !== null);
+                    if (lastGPS) {
+                        const balloonPos = [lastGPS.latitude, lastGPS.longitude];
+                        if (balloonMarker) {
+                            balloonMarker.setLatLng(balloonPos);
+                        } else {
+                            const customIcon = L.divIcon({
+                                className: 'pulse-marker',
+                                iconSize: [14, 14],
+                                iconAnchor: [7, 7]
+                            });
+                            balloonMarker = L.marker(balloonPos, { icon: customIcon }).addTo(map)
+                                .bindPopup(`<b>Callsign: ${lastGPS.callsign}</b><br>ALTITUDE: ${lastGPS.altitude}m`);
+                        }
+
+                        const shouldTrack = document.getElementById('chk-track').checked;
+                        if (shouldTrack && (validCoords.length === 1 || !map.getBounds().contains(balloonPos))) {
+                            map.panTo(balloonPos);
+                        }
+                    }
+
+                    const sublist = [...packets].slice(0, 40).reverse();
+                    const labels = sublist.map(p => {
+                        const t = p.computed_time ? new Date(p.computed_time) : new Date(p.received_at);
+                        return t.toLocaleTimeString();
+                    });
+                    const altData = sublist.map(p => p.altitude);
+                    const battData = sublist.map(p => p.batt_voltage);
+                    const tempIntData = sublist.map(p => p.temp_internal);
+                    const tempExtData = sublist.map(p => p.temp_external);
+                    const satsData = sublist.map(p => p.gps_sats);
+
+                    altChart.data.labels = labels;
+                    altChart.data.datasets[0].data = altData;
+                    altChart.update();
+
+                    battChart.data.labels = labels;
+                    battChart.data.datasets[0].data = battData;
+                    battChart.update();
+
+                    tempChart.data.labels = labels;
+                    tempChart.data.datasets[0].data = tempIntData;
+                    tempChart.data.datasets[1].data = tempExtData;
+                    tempChart.update();
+
+                    satsChart.data.labels = labels;
+                    satsChart.data.datasets[0].data = satsData;
+                    satsChart.update();
+
+                    const newest = packets[0];
+                    document.getElementById('global-stats-text').textContent =
+                        `CALLSIGN: ${newest.callsign} | TOTAL PACKETS: ${packets.length}`;
+                }
+            } catch (err) {
+                console.error("Failed to update dashboard data:", err);
+            }
+        }
+
+        initCharts();
+        updateData();
+        setInterval(updateData, 2000);
+    </script>
+</body>
+
+</html>

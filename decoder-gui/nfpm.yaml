@@ -1,0 +1,24 @@
+name: goblin-decoder
+arch: "${GOARCH}"
+platform: linux
+version: "${VERSION}"
+
+maintainer: "Goblin Project"
+description: |
+  HAB telemetry decoder and uploader.
+  Goblin Decoder receives and decodes high-altitude balloon telemetry
+  and optionally uploads it to SondeHub and the central telemetry server.
+section: hamradio
+priority: optional
+
+contents:
+  - src: ./build/bin/goblin-decoder
+    dst: /usr/bin/goblin-decoder
+    file_info:
+      mode: 0755
+
+  - src: ./build/appicon.png
+    dst: /usr/share/icons/hicolor/256x256/apps/goblin-decoder.png
+
+  - src: ./build/linux/goblin-decoder.desktop
+    dst: /usr/share/applications/goblin-decoder.desktop

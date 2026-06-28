@@ -132,6 +132,18 @@ jobs:
             ~/go/bin/wails.exe
           key: ${{ runner.os }}-${{ runner.arch }}-wails-cli-v2.12.0
 
+      - name: Cache nfpm
+        id: cache-nfpm
+        if: ${{ matrix.is_linux }}
+        uses: actions/cache@v4
+        with:
+          path: ~/go/bin/nfpm
+          key: ${{ runner.os }}-${{ runner.arch }}-nfpm-v2.41.4
+
+      - name: Install nfpm
+        if: ${{ matrix.is_linux && steps.cache-nfpm.outputs.cache-hit != 'true' }}
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.4
+
       - name: Install Wails CLI
         if: steps.cache-wails.outputs.cache-hit != 'true'
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.12.0
@@ -170,6 +182,22 @@ jobs:
         run: |
           mkdir -p package-dir
           tar -czf "package-dir/goblin-decoder-${{ matrix.name }}.tar.gz" -C decoder-gui/build/bin "goblin-decoder"
+
+      # Linux .deb Packaging
+      - name: Build .deb Package
+        if: ${{ matrix.is_linux }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Strip leading 'v' for nfpm (e.g. v1.2.3 -> 1.2.3); tildes are valid in deb versions
+          DEB_VERSION="${VERSION#v}"
+          DEB_VERSION="${DEB_VERSION/+/~}"
+          GOARCH=$(echo "${{ matrix.platform }}" | cut -d'/' -f2)
+          mkdir -p package-dir
+          cd decoder-gui
+          VERSION="${DEB_VERSION}" GOARCH="${GOARCH}" nfpm pkg \
+            --packager deb \
+            --config nfpm.yaml \
+            --target "../package-dir/goblin-decoder-${{ matrix.name }}.deb"
 
       # macOS Packaging
       - name: Prepare macOS Artifacts

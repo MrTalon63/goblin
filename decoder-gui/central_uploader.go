@@ -84,6 +84,10 @@ func (u *CentralUploader) runLoop() {
 
 	connect := func() bool {
 		u.mu.Lock()
+		if !u.running {
+			u.mu.Unlock()
+			return false
+		}
 		url := u.cfg.TelemetryServerUrl
 		u.mu.Unlock()
 
@@ -118,6 +122,11 @@ func (u *CentralUploader) runLoop() {
 
 		// Register the receiver
 		u.mu.Lock()
+		if !u.running {
+			u.mu.Unlock()
+			c.Close()
+			return false
+		}
 		regMsg := map[string]interface{}{
 			"type":        "register",
 			"receiver_id": u.cfg.TelemetryReceiverID,
@@ -138,6 +147,11 @@ func (u *CentralUploader) runLoop() {
 		}
 
 		u.mu.Lock()
+		if !u.running {
+			u.mu.Unlock()
+			c.Close()
+			return false
+		}
 		u.conn = c
 		u.mu.Unlock()
 
