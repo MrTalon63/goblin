@@ -8,6 +8,11 @@
   "frontend:dev:serverUrl": "auto",
   "author": {
     "name": "MrTalon63",
-    "email": "marcin@mrtalon.eu"
+    "email": "me@mrtalon.eu"
+  },
+  "info": {
+    "companyName": "mrtalon63",
+    "productName": "Goblin Decoder",
+    "productVersion": "1.0.0"
   }
 }
