@@ -25,7 +25,7 @@ jobs:
           - name: windows-amd64
             os: windows-latest
             platform: windows/amd64
-            wails_flags: "-nsis"
+            wails_flags: "-nsis -webview2 embed"
             wails_upx: "-upx"
             artifact_name: windows-amd64
             is_linux: false
