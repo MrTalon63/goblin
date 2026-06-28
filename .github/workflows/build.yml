@@ -94,15 +94,15 @@ jobs:
         run: |
           sudo apt-get update
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev build-essential pkg-config upx-ucl
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev build-essential pkg-config
           else
-            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config upx-ucl
+            sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev build-essential pkg-config
           fi
 
-      # Install Windows UPX
-      - name: Install UPX (Windows)
-        if: ${{ startsWith(matrix.platform, 'windows/') }}
-        run: choco install -y upx
+      - name: Set up UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          install-only: true
 
       # Install Windows NSIS (required to build installer)
       - name: Install NSIS (Windows)
