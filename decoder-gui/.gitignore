@@ -1,5 +1,4 @@
 build/bin
-build/
 node_modules
 frontend/dist
 frontend/node_modules
@@ -14,4 +13,3 @@ data
 *.dylib
 packets*.ssdv
 *.tmp
-decoder-gui-ng.exe

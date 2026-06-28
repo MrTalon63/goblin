@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Goblin Decoder
+Comment=HAB telemetry decoder and uploader
+Exec=goblin-decoder
+Icon=goblin-decoder
+Terminal=false
+Type=Application
+Categories=HamRadio;Science;
