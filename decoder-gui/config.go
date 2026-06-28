@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"github.com/google/uuid"
 )
 
 // APIDConfig defines the configuration for a single APID.
@@ -22,15 +24,33 @@ const (
 )
 
 type Config struct {
-	APIDs           map[int]APIDConfig `json:"apids"`
-	CacheFile       string             `json:"cache_file"`
-	WinWidth        int                `json:"window_width"`
-	WinHeight       int                `json:"window_height"`
-	SaveDir         string             `json:"save_dir"`
-	MaxHistory      int                `json:"max_history"`
-	TilePort        int                `json:"tile_port"` // 0 = random
-	TileDir         string             `json:"tile_dir"`
-	TileConcurrency int                `json:"tile_concurrency"` // concurrent downloads (1-8)
+	APIDs                    map[int]APIDConfig `json:"apids"`
+	CacheFile                string             `json:"cache_file"`
+	WinWidth                 int                `json:"window_width"`
+	WinHeight                int                `json:"window_height"`
+	SaveDir                  string             `json:"save_dir"`
+	MaxHistory               int                `json:"max_history"`
+	TilePort                 int                `json:"tile_port"` // 0 = random
+	TileDir                  string             `json:"tile_dir"`
+	TileConcurrency          int                `json:"tile_concurrency"` // concurrent downloads (1-8)
+	SondehubEnabled          bool               `json:"sondehub_enabled"`
+	SondehubUploaderCallsign string             `json:"sondehub_uploader_callsign"`
+	SondehubUploaderLat      float64            `json:"sondehub_uploader_lat"`
+	SondehubUploaderLon      float64            `json:"sondehub_uploader_lon"`
+	SondehubUploaderAlt      float64            `json:"sondehub_uploader_alt"`
+	SondehubUploaderAntenna  string             `json:"sondehub_uploader_antenna"`
+	SondehubUploaderRadio    string             `json:"sondehub_uploader_radio"`
+
+	TelemetryServerEnabled bool    `json:"telemetry_server_enabled"`
+	TelemetryServerUrl     string  `json:"telemetry_server_url"`
+	TelemetryReceiverID    string  `json:"telemetry_receiver_id"`
+	TelemetryNickname      string  `json:"telemetry_nickname"`
+	TelemetryLat           float64 `json:"telemetry_lat"`
+	TelemetryLon           float64 `json:"telemetry_lon"`
+	TelemetryAlt           float64 `json:"telemetry_alt"`
+	TelemetryAntenna       string  `json:"telemetry_antenna"`
+	TelemetryRadio         string  `json:"telemetry_radio"`
+	TelemetryPrompted      bool    `json:"telemetry_prompted"`
 }
 
 func DefaultConfig() Config {
@@ -58,6 +78,24 @@ func DefaultConfig() Config {
 		TileDir:         filepath.Join(baseDir, "tiles"),
 		TilePort:        0,
 		TileConcurrency: 2,
+		SondehubEnabled:          false,
+		SondehubUploaderCallsign: "N0CALL",
+		SondehubUploaderLat:      0.0,
+		SondehubUploaderLon:      0.0,
+		SondehubUploaderAlt:      0.0,
+		SondehubUploaderAntenna:  "",
+		SondehubUploaderRadio:    "",
+
+		TelemetryServerEnabled: false,
+		TelemetryServerUrl:     "https://goblin.mrtalon.eu",
+		TelemetryReceiverID:    "",
+		TelemetryNickname:      "",
+		TelemetryLat:           0.0,
+		TelemetryLon:           0.0,
+		TelemetryAlt:           0.0,
+		TelemetryAntenna:       "",
+		TelemetryRadio:         "",
+		TelemetryPrompted:      false,
 	}
 }
 
@@ -130,6 +168,22 @@ func LoadConfig() Config {
 	if c.TileConcurrency == 0 {
 		c.TileConcurrency = def.TileConcurrency
 	}
+	if c.SondehubUploaderCallsign == "" {
+		c.SondehubUploaderCallsign = def.SondehubUploaderCallsign
+	}
+
+	// Populate telemetry defaults
+	if c.TelemetryServerUrl == "" {
+		c.TelemetryServerUrl = def.TelemetryServerUrl
+	}
+	if c.TelemetryReceiverID == "" {
+		c.TelemetryReceiverID = uuid.New().String()
+		_ = SaveConfig(c) // Persist the generated UUID immediately
+	}
+	if c.TelemetryNickname == "" {
+		c.TelemetryNickname = def.TelemetryNickname
+	}
+
 	return c
 }
 

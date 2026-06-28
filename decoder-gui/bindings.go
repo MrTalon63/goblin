@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	goRuntime "runtime"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -36,8 +38,6 @@ type ImageInfo struct {
 
 // TelemetrySnapshot returns current telemetry data as JSON
 func (a *App) TelemetrySnapshot() string {
-	a.telemMutex.Lock()
-	defer a.telemMutex.Unlock()
 
 	// Snapshot totalImages, corruptCount, and APID configs under cfgMu
 	a.cfgMu.Lock()
@@ -81,25 +81,32 @@ func (a *App) TelemetrySnapshot() string {
 		"uptime":    uptimeStr,
 		"recording": recording,
 	}
-	if a.telemCore != nil {
+	a.telemMutex.Lock()
+	core := a.telemCore
+	timesync := a.telemTimesync
+	dynamic := a.telemDynamic
+	a.telemMutex.Unlock()
+
+	if core != nil {
 		data["core"] = map[string]interface{}{
-			"latitude":     a.telemCore.Latitude,
-			"longitude":    a.telemCore.Longitude,
-			"altitude":     a.telemCore.Altitude,
-			"battVoltage":  a.telemCore.BattVoltage,
-			"tempInternal": a.telemCore.TempInternal,
-			"tempExternal": a.telemCore.TempExternal,
-			"time":         a.telemCore.ComputedTime.Format(time.RFC3339Nano),
+			"callsign":     core.Callsign,
+			"latitude":     core.Latitude,
+			"longitude":    core.Longitude,
+			"altitude":     core.Altitude,
+			"battVoltage":  core.BattVoltage,
+			"tempInternal": core.TempInternal,
+			"tempExternal": core.TempExternal,
+			"time":         core.ComputedTime.Format(time.RFC3339Nano),
 		}
 	}
-	if a.telemTimesync != nil {
-		lines := a.telemTimesync.DisplayLines()
+	if timesync != nil {
+		lines := timesync.DisplayLines()
 		if len(lines) > 0 {
 			data["timesync"] = lines[0]
 		}
 	}
-	if a.telemDynamic != nil {
-		data["payloadName"] = a.telemDynamic.Name
+	if dynamic != nil {
+		data["payloadName"] = dynamic.Name
 	}
 
 	b, err := json.Marshal(data)
@@ -170,6 +177,11 @@ func (a *App) SaveSettings(jsonConfig string) string {
 		a.tileCache.UpdateBaseDir(newCfg.TileDir)
 	}
 
+	a.telemMutex.Lock()
+	a.sessionCallsign = ""
+	a.callsignCounts = make(map[string]int)
+	a.telemMutex.Unlock()
+
 	// Restart receivers under lock
 	for apid, r := range a.udpReceivers {
 		r.Close()
@@ -179,6 +191,11 @@ func (a *App) SaveSettings(jsonConfig string) string {
 	a.cfgMu.Unlock()
 
 	a.restartCache(newCfg.CacheFile)
+
+	if a.centralUploader != nil {
+		a.centralUploader.Start(newCfg)
+	}
+
 	return "ok"
 }
 
@@ -351,4 +368,27 @@ func (a *App) SelectDirectory(title string) string {
 	}
 	return dir
 }
+
+// OpenSessionFolder opens the current session folder in the system file explorer
+func (a *App) OpenSessionFolder() {
+	dir := a.session.SessionPath()
+	var cmd *exec.Cmd
+	switch goRuntime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", dir)
+	case "darwin":
+		cmd = exec.Command("open", dir)
+	default: // linux, freebsd, etc
+		cmd = exec.Command("xdg-open", dir)
+	}
+	if err := cmd.Start(); err != nil {
+		log.Printf("Failed to open folder: %v", err)
+	}
+}
+
+// IsSessionActive returns whether the active receive session directory has been created.
+func (a *App) IsSessionActive() bool {
+	return a.session.IsCreated()
+}
+
 

@@ -52,10 +52,12 @@ type App struct {
 
 	firstPacketTime time.Time
 
-	telemMutex    sync.Mutex
-	telemTimesync *TimeSyncData
-	telemCore     *CoreTelemetryData
-	telemDynamic  *DynamicTelemetryData
+	telemMutex      sync.Mutex
+	telemTimesync   *TimeSyncData
+	telemCore       *CoreTelemetryData
+	telemDynamic    *DynamicTelemetryData
+	sessionCallsign string
+	callsignCounts  map[string]int
 
 	// image decoder state
 	snapshotMu   sync.Mutex
@@ -78,6 +80,7 @@ type App struct {
 	autoRecording bool
 
 	tileCache *TileCache
+	centralUploader *CentralUploader
 }
 
 // NewApp creates a new App application struct
@@ -92,6 +95,8 @@ func NewApp() *App {
 		apidCounters:   make(map[int]int64),
 		session:        NewSessionDir(cfg.SaveDir),
 		tileCache:      NewTileCache(cfg.TileDir, cfg.TilePort, cfg.TileConcurrency),
+		callsignCounts: make(map[string]int),
+		centralUploader: NewCentralUploader(),
 	}
 }
 
@@ -102,6 +107,11 @@ func (a *App) startup(ctx context.Context) {
 	a.restartCache(a.cfg.CacheFile)
 	a.startAllReceivers()
 	a.lastHistoryAdd = make(map[uint16]time.Time)
+
+	// Start central uploader
+	if a.centralUploader != nil {
+		a.centralUploader.Start(a.cfg)
+	}
 
 	// Start tile cache server with Wails context for event emitting
 	a.tileCache.SetWailsContext(ctx)
@@ -186,6 +196,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	if a.tileCache != nil {
 		a.tileCache.Stop()
+	}
+	if a.centralUploader != nil {
+		a.centralUploader.Stop()
 	}
 }
 

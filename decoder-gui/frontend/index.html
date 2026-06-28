@@ -1,165 +1,343 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>Goblin Decoder</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="./src/style.css"/>
+    <link rel="stylesheet" href="./src/style.css" />
 </head>
+
 <body>
-<div id="app">
-    <div id="titlebar">
-        <h1>Goblin Decoder <span id="app-version"></span></h1>
-        <div id="title-status">
-            <span id="status-uptime">Mission: --</span>
-            <span id="status-recording" class="rec-off">REC</span>
-            <span id="status-payload"></span>
-            <button id="hamburger" title="Menu">☰</button>
-            <div id="hamburger-menu" class="hidden">
-                <button id="btn-rec-start">Start Recording</button>
-                <button id="btn-rec-stop">Stop Recording</button>
-                <button id="btn-clear-cache">Clear Cache</button>
-                <button id="btn-about">About</button>
-                <div id="stats-status" style="padding: 4px;"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="tabbar">
-        <button class="tab-btn active" data-tab="images">Images</button>
-        <button class="tab-btn" data-tab="telemetry">Telemetry</button>
-        <button class="tab-btn" data-tab="statistics">Statistics</button>
-        <button class="tab-btn" data-tab="settings">Settings</button>
-    </div>
-
-    <!-- IMAGES TAB -->
-    <div id="tab-images" class="tab-content active">
-        <div id="image-layout">
-            <div id="image-main">
-                <button id="btn-back-live" class="hidden" title="Back to live view">← Live</button>
-                <canvas id="image-canvas"></canvas>
-                <div id="image-status">
-                    <span id="img-apid">APID: --</span>
-                    <span id="img-id">Img: --</span>
-                    <span id="img-pkts">Pkts: 0</span>
-                    <span id="img-res">Res: --x--</span>
-                    <span id="img-quality">Quality: --</span>
-                    <span id="img-total">History: 0</span>
-                </div>
-            </div>
-            <div id="image-sidebar">
-                <h3>History</h3>
-                <div id="image-history-list">
-                    <div class="empty-msg">No images yet</div>
+    <div id="app">
+        <div id="titlebar">
+            <h1>Goblin Decoder</h1>
+            <div id="title-status">
+                <span id="status-uptime">Mission: --</span>
+                <span id="status-recording" class="rec-off">REC</span>
+                <span id="status-payload"></span>
+                <button id="hamburger" title="Menu">☰</button>
+                <div id="hamburger-menu" class="hidden">
+                    <button id="btn-rec-start" disabled style="opacity:0.5; cursor:not-allowed;"
+                        title="Recording is currently disabled/broken">Start Recording (Disabled)</button>
+                    <button id="btn-rec-stop" disabled style="opacity:0.5; cursor:not-allowed;"
+                        title="Recording is currently disabled/broken">Stop Recording (Disabled)</button>
+                    <button id="btn-clear-cache">Clear Cache</button>
+                    <button id="btn-about">About</button>
+                    <div id="stats-status" style="padding: 4px;"></div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- TELEMETRY TAB -->
-    <div id="tab-telemetry" class="tab-content">
-        <div id="telem-layout">
-            <div id="telem-map"></div>
-            <div id="telem-splitter-map" class="vsplitter"></div>
-            <div id="telem-bottom-wrap">
-                <div id="telem-charts-wrap">
-                    <div id="telem-charts">
-                        <div class="chart-box"><canvas id="chart-battery"></canvas></div>
-                        <div class="chart-box"><canvas id="chart-tempInt"></canvas></div>
-                        <div class="chart-box"><canvas id="chart-tempExt"></canvas></div>
-                        <div class="chart-box"><canvas id="chart-altitude"></canvas></div>
+        <div id="tabbar">
+            <button class="tab-btn active" data-tab="images">Images</button>
+            <button class="tab-btn" data-tab="telemetry">Telemetry</button>
+            <button class="tab-btn" data-tab="statistics">Statistics</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
+        </div>
+
+        <!-- IMAGES TAB -->
+        <div id="tab-images" class="tab-content active">
+            <div id="image-layout">
+                <div id="image-main">
+                    <button id="btn-back-live" class="hidden" title="Back to live view">← Live</button>
+                    <canvas id="image-canvas"></canvas>
+                    <div id="image-status">
+                        <span id="img-apid">APID: --</span>
+                        <span id="img-id">Img: --</span>
+                        <span id="img-pkts">Pkts: 0</span>
+                        <span id="img-res">Res: --x--</span>
+                        <span id="img-quality">Quality: --</span>
+                        <span id="img-total">History: 0</span>
                     </div>
                 </div>
-                <div id="telem-log-wrap">
-                    <div id="telem-log">Waiting for telemetry...</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- STATISTICS TAB -->
-    <div id="tab-statistics" class="tab-content">
-        <h3>Statistics</h3>
-        <div id="stats-content">
-            <p>Session Dir: <span id="info-session">--</span></p>
-            <p>Payload Name: <span id="info-payload">--</span></p>
-            <p>Images: <span id="info-images">0</span></p>
-            <table id="apid-table">
-                <thead>
-                    <tr><th>APID</th><th>Type</th><th>Port</th><th>Packets</th></tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- SETTINGS TAB -->
-    <div id="tab-settings" class="tab-content">
-        <h3>Settings</h3>
-
-        <div class="settings-card">
-            <h4>General</h4>
-            <label for="set-save-dir">Save Directory</label>
-            <div style="display:flex; gap:6px; margin-bottom:8px;">
-                <input type="text" id="set-save-dir" spellcheck="false" style="flex:1; width:auto;"/>
-                <button id="btn-choose-save-dir" class="save-btn" style="padding: 6px 12px; margin: 0; background: #0f3460;" title="Browse Directory">Browse...</button>
-            </div>
-            <label for="set-max-history">Max History</label>
-            <input type="number" id="set-max-history" min="1" max="500" style="margin-bottom:8px;"/>
-            <label for="set-tile-dir">Tile Directory</label>
-            <div style="display:flex; gap:6px; margin-bottom:8px;">
-                <input type="text" id="set-tile-dir" spellcheck="false" style="flex:1; width:auto;"/>
-                <button id="btn-choose-tile-dir" class="save-btn" style="padding: 6px 12px; margin: 0; background: #0f3460;" title="Browse Directory">Browse...</button>
-            </div>
-            <div>
-                <label style="font-size:11px; color:#aaa;">Tile Concurrency (1-20)</label>
-                <input type="number" id="set-tile-concurrency" min="1" max="20" style="width:100%;"/>
-            </div>
-        </div>
-
-        <div class="settings-card">
-            <h4>Tile Cache</h4>
-            <label>Draw a rectangle on the map to select area, then preload (rate-limited: 2 concurrent, 150ms between requests)</label>
-            <div id="tile-picker-map"></div>
-            <div style="display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
-                <div style="flex:1; min-width:200px;">
-                    <label style="font-size:11px; color:#aaa;">Zoom range</label>
-                    <div style="display:flex; gap:4px;">
-                        <input type="number" id="tile-zoom-min" placeholder="Min" min="1" max="19" value="8" style="width:70px;"/>
-                        <input type="number" id="tile-zoom-max" placeholder="Max" min="1" max="19" value="14" style="width:70px;"/>
+                <div id="image-sidebar">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h3 style="margin:0;">History</h3>
+                        <button id="btn-open-rx-folder" class="save-btn" disabled
+                            style="padding: 4px 8px; font-size: 11px; margin: 0; background: #0f3460; opacity: 0.5; cursor: not-allowed;"
+                            title="Open Rx Folder in File Explorer">Open Folder</button>
+                    </div>
+                    <div id="image-history-list">
+                        <div class="empty-msg">No images yet</div>
                     </div>
                 </div>
-                <button id="btn-preload-tiles" class="save-btn">Preload</button>
-                <button id="btn-cancel-tiles" class="save-btn" style="background:#555;" disabled>Cancel</button>
             </div>
-            <div id="tile-estimate" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
-            <progress id="tile-progress-bar" value="0" max="100" style="width:100%; margin-top:4px; height:12px; display:none;"></progress>
-            <div id="tile-progress-text" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
         </div>
 
-        <div class="settings-card">
-            <h4>Advanced</h4>
-            <textarea id="set-json" rows="16" spellcheck="false"></textarea>
-            <button id="btn-save-settings" class="save-btn" style="margin-top:8px;">Save Settings</button>
-            <span id="set-status" style="margin-left:8px;"></span>
+        <!-- TELEMETRY TAB -->
+        <div id="tab-telemetry" class="tab-content">
+            <div id="telem-layout">
+                <div id="telem-map"></div>
+                <div id="telem-splitter-map" class="vsplitter"></div>
+                <div id="telem-bottom-wrap">
+                    <div id="telem-charts-wrap">
+                        <div id="telem-charts">
+                            <div class="chart-box"><canvas id="chart-battery"></canvas></div>
+                            <div class="chart-box"><canvas id="chart-tempInt"></canvas></div>
+                            <div class="chart-box"><canvas id="chart-tempExt"></canvas></div>
+                            <div class="chart-box"><canvas id="chart-altitude"></canvas></div>
+                        </div>
+                    </div>
+                    <div id="telem-log-wrap">
+                        <div id="telem-log">Waiting for telemetry...</div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
 
-    <div id="about-overlay" class="hidden">
-        <div id="about-modal">
-            <button id="about-close" title="Close">&times;</button>
-            <h2>Goblin Decoder <span id="about-version"></span></h2>
-            <p>Desktop application for real-time decoding of <strong>Goblin</strong> payload, which includes images and telemetry from high-altitude balloon payloads.</p>
-            <p style="font-size:12px; color:#aaa;">Built with Wails + Go</p>
-            <a id="about-github" href="https://github.com/MrTalon63/goblin/" target="_blank" rel="noopener" style="color:#e94560; text-decoration:none; font-size:13px;">⭐ Star on GitHub</a>
+        <!-- STATISTICS TAB -->
+        <div id="tab-statistics" class="tab-content">
+            <h3>Statistics</h3>
+            <div id="stats-content">
+                <p>Session Dir: <span id="info-session">--</span></p>
+                <p>Payload Name: <span id="info-payload">--</span></p>
+                <p>Callsign: <span id="info-callsign">--</span></p>
+                <p>Images: <span id="info-images">0</span></p>
+                <table id="apid-table">
+                    <thead>
+                        <tr>
+                            <th>APID</th>
+                            <th>Type</th>
+                            <th>Port</th>
+                            <th>Packets</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SETTINGS TAB -->
+        <div id="tab-settings" class="tab-content">
+            <h3>Settings</h3>
+
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <h4>General</h4>
+                    <label for="set-save-dir">Save Directory</label>
+                    <div style="display:flex; gap:6px; margin-bottom:8px;">
+                        <input type="text" id="set-save-dir" spellcheck="false" style="flex:1; width:auto;" />
+                        <button id="btn-choose-save-dir" class="save-btn"
+                            style="padding: 6px 12px; margin: 0; background: #0f3460;"
+                            title="Browse Directory">Browse...</button>
+                    </div>
+                    <label for="set-max-history">Max History</label>
+                    <input type="number" id="set-max-history" min="1" max="500" style="margin-bottom:8px;" />
+                    <label for="set-tile-dir">Tile Directory</label>
+                    <div style="display:flex; gap:6px; margin-bottom:8px;">
+                        <input type="text" id="set-tile-dir" spellcheck="false" style="flex:1; width:auto;" />
+                        <button id="btn-choose-tile-dir" class="save-btn"
+                            style="padding: 6px 12px; margin: 0; background: #0f3460;"
+                            title="Browse Directory">Browse...</button>
+                    </div>
+                    <div>
+                        <label style="font-size:11px; color:#aaa;">Tile Concurrency (1-20)</label>
+                        <input type="number" id="set-tile-concurrency" min="1" max="20" style="width:100%;" />
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h4>SondeHub Uploader</h4>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <input type="checkbox" id="set-sondehub-enabled" style="width:auto; margin:0;" />
+                        <label for="set-sondehub-enabled" style="margin:0; cursor:pointer;">Enable SondeHub
+                            Upload</label>
+                    </div>
+                    <label for="set-sondehub-callsign">Uploader Callsign</label>
+                    <input type="text" id="set-sondehub-callsign" spellcheck="false" placeholder="e.g. N0CALL"
+                        style="margin-bottom:8px;" />
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Receiver Position (Lat
+                        / Lon / Alt m)</label>
+                    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center;">
+                        <input type="number" id="set-sondehub-lat" step="0.000001" min="-90" max="90"
+                            placeholder="Lat (e.g. 52.229)" style="flex:1; width:auto;" />
+                        <input type="number" id="set-sondehub-lon" step="0.000001" min="-180" max="180"
+                            placeholder="Lon (e.g. 21.012)" style="flex:1; width:auto;" />
+                        <input type="number" id="set-sondehub-alt" step="0.1" placeholder="Alt (e.g. 110)"
+                            style="width:130px;" />
+                        <button id="btn-pick-location-map" class="save-btn"
+                            style="padding: 6px 12px; margin: 0; background: #0f3460; font-size:13px; white-space:nowrap;"
+                            title="Select Location on Map">Select on Map</button>
+                    </div>
+                    <div id="elevation-loading-status" style="font-size:11px; color:#aaa; margin-top:-4px;"></div>
+
+                    <label for="set-sondehub-antenna">Receiver Antenna Description</label>
+                    <input type="text" id="set-sondehub-antenna" spellcheck="false"
+                        placeholder="e.g. 5/8 Wave Ground Plane" style="margin-bottom:8px;" />
+
+                    <label for="set-sondehub-radio">Receiver Radio Description</label>
+                    <input type="text" id="set-sondehub-radio" spellcheck="false" placeholder="e.g. RTL-SDR V4" />
+                </div>
+
+                <div class="settings-card">
+                    <h4>Central Telemetry Uploader</h4>
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <input type="checkbox" id="set-telemetry-enabled" style="width:auto; margin:0;" />
+                        <label for="set-telemetry-enabled" style="margin:0; cursor:pointer;">Enable Telemetry
+                            Upload</label>
+                    </div>
+                    <label for="set-telemetry-url">Server URL</label>
+                    <input type="text" id="set-telemetry-url" spellcheck="false" placeholder="https://goblin.mrtalon.eu"
+                        style="margin-bottom:8px;" />
+
+                    <label for="set-telemetry-nickname">Station Nickname</label>
+                    <input type="text" id="set-telemetry-nickname" spellcheck="false" placeholder="e.g. N0CALL or Nick"
+                        style="margin-bottom:8px;" />
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Receiver Position (Lat
+                        / Lon / Alt m)</label>
+                    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; width:100%;">
+                        <input type="number" id="set-telemetry-lat" step="0.000001" min="-90" max="90" placeholder="Lat"
+                            style="flex:1; min-width:0; width:auto;" />
+                        <input type="number" id="set-telemetry-lon" step="0.000001" min="-180" max="180"
+                            placeholder="Lon" style="flex:1; min-width:0; width:auto;" />
+                        <input type="number" id="set-telemetry-alt" step="0.1" placeholder="Alt"
+                            style="width:70px; min-width:0;" />
+                        <button id="btn-telemetry-pick-location-map" class="save-btn"
+                            style="padding: 6px 12px; margin: 0; background: #0f3460; font-size:13px; white-space:nowrap; flex-shrink:0;"
+                            title="Select Location on Map">Select on Map</button>
+                    </div>
+                    <div id="telemetry-elevation-status" style="font-size:11px; color:#aaa; margin-top:-4px;"></div>
+
+                    <label for="set-telemetry-antenna">Antenna Description</label>
+                    <input type="text" id="set-telemetry-antenna" spellcheck="false" placeholder="e.g. Half Wave Dipole"
+                        style="margin-bottom:8px;" />
+
+                    <label for="set-telemetry-radio">Radio Description</label>
+                    <input type="text" id="set-telemetry-radio" spellcheck="false" placeholder="e.g. RTL-SDR V4" />
+                </div>
+
+                <div class="settings-card">
+                    <h4>Tile Cache</h4>
+                    <label>Draw a rectangle on the map to select area, then preload (rate-limited: 2 concurrent, 150ms
+                        between requests)</label>
+                    <div id="tile-picker-map"></div>
+                    <div style="display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+                        <div style="flex:1; min-width:200px;">
+                            <label style="font-size:11px; color:#aaa;">Zoom range</label>
+                            <div style="display:flex; gap:4px;">
+                                <input type="number" id="tile-zoom-min" placeholder="Min" min="1" max="19" value="8"
+                                    style="width:70px;" />
+                                <input type="number" id="tile-zoom-max" placeholder="Max" min="1" max="19" value="14"
+                                    style="width:70px;" />
+                            </div>
+                        </div>
+                        <button id="btn-preload-tiles" class="save-btn">Preload</button>
+                        <button id="btn-cancel-tiles" class="save-btn" style="background:#555;" disabled>Cancel</button>
+                    </div>
+                    <div id="tile-estimate" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
+                    <progress id="tile-progress-bar" value="0" max="100"
+                        style="width:100%; margin-top:4px; height:12px; display:none;"></progress>
+                    <div id="tile-progress-text" style="margin-top:4px; font-size:12px; color:#aaa;"></div>
+                </div>
+
+                <div class="settings-card">
+                    <h4>Advanced</h4>
+                    <textarea id="set-json" rows="16" spellcheck="false"></textarea>
+                    <button id="btn-save-settings" class="save-btn" style="margin-top:8px;">Save Settings</button>
+                    <span id="set-status" style="margin-left:8px;"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="floating-save-container" class="hidden">
+            <span>You have unsaved changes in settings!</span>
+            <button id="btn-floating-save" class="save-btn">Save Settings</button>
+            <span id="floating-save-status"></span>
+        </div>
+
+        <div id="about-overlay" class="hidden">
+            <div id="about-modal">
+                <button id="about-close" title="Close">&times;</button>
+                <h2>Goblin Decoder <span id="about-version"></span></h2>
+                <p>Desktop application for real-time decoding of <strong>Goblin</strong> payload, which includes images
+                    and telemetry from high-altitude balloon payloads.</p>
+                <p style="font-size:12px; color:#aaa;">Built with Wails + Go</p>
+                <a id="about-github" href="https://github.com/MrTalon63/goblin/" target="_blank" rel="noopener"
+                    style="color:#e94560; text-decoration:none; font-size:13px;">⭐ Star on GitHub</a>
+            </div>
+        </div>
+
+        <div id="telemetry-prompt-overlay" class="hidden">
+            <div id="telemetry-prompt-modal">
+                <h3 style="margin-top:0; margin-bottom:12px; font-size:16px; color:#e94560;">Contribute Live Telemetry?
+                </h3>
+                <p style="font-size:13px; line-height:1.4; margin-bottom:16px;">Would you like to contribute your
+                    decoded telemetry packets to the central tracking network at <a href="#" id="telemetry-prompt-url-link" style="color:#e94560; text-decoration:underline; cursor:pointer; font-weight:bold;">https://goblin.mrtalon.eu</a> in real-time?</p>
+                <div style="margin-bottom:16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                        <input type="checkbox" id="prompt-telemetry-enabled" checked
+                            style="width:auto; margin:0; cursor:pointer;" />
+                        <label for="prompt-telemetry-enabled"
+                            style="margin:0; font-size:13px; font-weight:bold; cursor:pointer;">Yes, share live
+                            telemetry packets</label>
+                    </div>
+                    <p style="font-size:11px; color:#aaa; margin-left:22px; margin-bottom:12px;">Sharing helps construct
+                        the live tracking map and graphs for this balloon flight.</p>
+                </div>
+                <div id="prompt-setup-fields" style="border-top: 1px solid #333; padding-top:12px;">
+                    <p style="font-size:12px; font-weight:bold; margin-bottom:8px; color:#ddd;">Configure Your Station
+                        Info (Optional):</p>
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Station
+                        Nickname</label>
+                    <input type="text" id="prompt-nickname" placeholder="e.g. N0CALL or Nick"
+                        style="width:100%; padding:6px; font-size:12px; margin-bottom:8px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Position (Lat / Lon /
+                        Alt m)</label>
+                    <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center; width:100%;">
+                        <input type="number" id="prompt-lat" step="0.000001" placeholder="Lat"
+                            style="flex:1; min-width:0; width:auto; padding:6px; font-size:12px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+                        <input type="number" id="prompt-lon" step="0.000001" placeholder="Lon"
+                            style="flex:1; min-width:0; width:auto; padding:6px; font-size:12px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+                        <input type="number" id="prompt-alt" step="0.1" placeholder="Alt"
+                            style="width:70px; min-width:0; padding:6px; font-size:12px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+                        <button id="btn-prompt-pick-location-map" class="save-btn"
+                            style="padding: 6px 12px; margin: 0; background: #0f3460; font-size:13px; white-space:nowrap; flex-shrink:0;"
+                            title="Select Location on Map">Select on Map</button>
+                    </div>
+                    <div id="prompt-elevation-status"
+                        style="font-size:11px; color:#aaa; margin-top:-4px; margin-bottom:8px;"></div>
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Antenna
+                        Description</label>
+                    <input type="text" id="prompt-antenna" placeholder="e.g. Half Wave Dipole"
+                        style="width:100%; padding:6px; font-size:12px; margin-bottom:8px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+
+                    <label style="font-size:11px; color:#aaa; display:block; margin-bottom:4px;">Radio
+                        Description</label>
+                    <input type="text" id="prompt-radio" placeholder="e.g. RTL-SDR V4"
+                        style="width:100%; padding:6px; font-size:12px; background:#111; color:#fff; border:1px solid #444; border-radius:3px;" />
+                </div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+                    <button id="btn-prompt-save" class="save-btn" style="padding: 8px 16px;">Save & Close</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="map-popup-overlay" class="hidden">
+            <div id="map-popup-modal">
+                <button id="map-popup-close" title="Close">&times;</button>
+                <h3 style="margin-top:0; margin-bottom:12px; font-size:16px;">Select Receiver Position</h3>
+                <div id="popup-map"></div>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+                    <button id="btn-popup-map-cancel" class="save-btn"
+                        style="background:#555; padding: 6px 12px;">Cancel</button>
+                    <button id="btn-popup-map-select" class="save-btn" style="padding: 6px 12px;">Select
+                        Position</button>
+                </div>
+            </div>
         </div>
     </div>
-</div>
-<script src="./src/main.js" type="module"></script>
+    <script src="./src/main.js" type="module"></script>
 </body>
+
 </html>

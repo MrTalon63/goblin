@@ -159,7 +159,7 @@ jobs:
         if: ${{ startsWith(matrix.platform, 'windows/') }}
         run: |
           mkdir -p package-dir
-          cp "decoder-gui/build/bin/Goblin Decoder.exe" "package-dir/Goblin Decoder-${{ matrix.name }}.exe"
+          cp "decoder-gui/build/bin/goblin-decoder.exe" "package-dir/goblin-decoder-${{ matrix.name }}.exe"
           PLATFORM_ARCH=$(echo "${{ matrix.platform }}" | cut -d'/' -f2)
           cp "decoder-gui/build/bin/Goblin Decoder-${PLATFORM_ARCH}-installer.exe" "package-dir/Goblin Decoder-${{ matrix.name }}-installer.exe"
         shell: bash
@@ -169,7 +169,7 @@ jobs:
         if: ${{ matrix.is_linux }}
         run: |
           mkdir -p package-dir
-          tar -czf "package-dir/Goblin Decoder-${{ matrix.name }}.tar.gz" -C decoder-gui/build/bin "Goblin Decoder"
+          tar -czf "package-dir/goblin-decoder-${{ matrix.name }}.tar.gz" -C decoder-gui/build/bin "goblin-decoder"
 
       # macOS Packaging
       - name: Prepare macOS Artifacts

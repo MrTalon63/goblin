@@ -8,13 +8,15 @@ import (
 	"github.com/fxamacker/cbor/v2"
 )
 
-// ComputeAPID1Time computes absolute wall-clock time from APID 0 time sync reference and APID 1/2 time offset.
+// ComputeAPID1Time computes absolute wall-clock time from APID 0 time sync reference and APID 1 time offset.
 func ComputeAPID1Time(base *TimeSyncData, offset uint16) time.Time {
 	if base == nil {
 		return time.Time{}
 	}
-	// timeOffset is in 10 ms units since baseTicks
-	offsetSec := float64(int64(offset)-int64(base.BaseTicks)) / 100.0
+	// offset is a wrapping 16-bit counter of 10ms ticks.
+	// We compute the signed 16-bit delta between the offset and base.BaseTicks.
+	diff := int16(offset - uint16(base.BaseTicks))
+	offsetSec := float64(diff) / 100.0
 	return time.Unix(int64(base.BaseTime), 0).Add(time.Duration(offsetSec * float64(time.Second)))
 }
 
@@ -34,7 +36,9 @@ func ComputeAPID2Time(base *TimeSyncData, raw map[string]interface{}) time.Time 
 	default:
 		return time.Time{}
 	}
-	offsetSec := (offset - float64(base.BaseTicks)) / 100.0
+	// offset is a wrapping 16-bit counter of 10ms ticks.
+	diff := int16(uint16(offset) - uint16(base.BaseTicks))
+	offsetSec := float64(diff) / 100.0
 	return time.Unix(int64(base.BaseTime), 0).Add(time.Duration(offsetSec * float64(time.Second)))
 }
 
@@ -49,8 +53,8 @@ type TimeSyncData struct {
 // DecodeAPID0 decodes a raw UPER-encoded APID 0 time sync packet.
 // Fields: baseTime (32 bits) + baseTicks (32 bits) = 64 bits = 8 bytes.
 func DecodeAPID0(pkt []byte) (*TimeSyncData, error) {
-	if len(pkt) < 8 {
-		return nil, fmt.Errorf("APID0 packet too short: %d bytes", len(pkt))
+	if len(pkt) != 8 {
+		return nil, fmt.Errorf("APID0 packet size invalid: got %d bytes, expected 8", len(pkt))
 	}
 	// UPER for simple 32-bit integers uses big-endian directly
 	baseTime := binary.BigEndian.Uint32(pkt[0:4])
@@ -141,8 +145,9 @@ func (br *bitReader) readBits(n int) (uint64, error) {
 //	tempInternal: 11 bits (-500..1000 → signed)
 //	tempExternal: 11 bits (-1000..500 → signed)
 func DecodeAPID1(pkt []byte) (*CoreTelemetryData, error) {
-	if len(pkt) < 16 {
-		return nil, fmt.Errorf("APID1 packet too short: %d bytes", len(pkt))
+	// APID1-CoreTelemetry contains 162 to 174 bits (21 to 22 bytes) depending on callsign length
+	if len(pkt) < 21 || len(pkt) > 22 {
+		return nil, fmt.Errorf("APID1 packet size invalid: got %d bytes, expected 21 or 22", len(pkt))
 	}
 
 	br := newBitReader(pkt)

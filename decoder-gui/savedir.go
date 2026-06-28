@@ -27,6 +27,13 @@ func NewSessionDir(baseDir string) *SessionDir {
 	}
 }
 
+// IsCreated returns whether the session directory has been created on disk.
+func (s *SessionDir) IsCreated() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.created
+}
+
 // EnsureSession creates the session directory if it doesn't exist yet.
 // Called on first packet received.
 func (s *SessionDir) EnsureSession() error {
@@ -216,3 +223,11 @@ func (s *SessionDir) OpenRecording(apid int) (*os.File, error) {
 	}
 	return f, nil
 }
+
+// PayloadName returns the received payload name.
+func (s *SessionDir) PayloadName() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.payloadName
+}
+

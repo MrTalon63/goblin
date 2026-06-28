@@ -94,12 +94,57 @@ func (a *App) handleAPID0(apid int, pkt []byte) {
 	a.session.SaveCSV(apid, "timesync", data.CSVHeader(), data.CSVRow())
 	msg := fmt.Sprintf("APID 0: timesync OK")
 	runtime.EventsEmit(a.ctx, "log", msg)
+
+	if a.centralUploader != nil {
+		a.telemMutex.Lock()
+		callsign := a.sessionCallsign
+		if callsign == "" {
+			callsign = "UNKNOWN"
+		}
+		a.telemMutex.Unlock()
+
+		a.centralUploader.Send(map[string]interface{}{
+			"type": "telemetry",
+			"apid": 0,
+			"packet": map[string]interface{}{
+				"callsign":         callsign,
+				"computed_time":    time.Unix(int64(data.BaseTime), 0).UTC().Format(time.RFC3339Nano),
+				"time_offset_10ms": data.BaseTicks,
+			},
+		})
+	}
 }
 
 func (a *App) handleAPID1(apid int, pkt []byte) {
 	data, err := DecodeAPID1(pkt)
 	if err != nil {
 		msg := fmt.Sprintf("APID 1 decode error: %v", err)
+		log.Print(msg)
+		runtime.EventsEmit(a.ctx, "log", msg)
+		return
+	}
+
+	a.telemMutex.Lock()
+	a.callsignCounts[data.Callsign]++
+	if a.sessionCallsign == "" {
+		if a.callsignCounts[data.Callsign] >= 5 {
+			a.sessionCallsign = data.Callsign
+			log.Printf("Session callsign locked onto: %s", data.Callsign)
+		}
+	} else if data.Callsign != a.sessionCallsign {
+		if a.callsignCounts[data.Callsign] >= 20 {
+			log.Printf("Session callsign lock transitioned from %s to: %s", a.sessionCallsign, data.Callsign)
+			a.sessionCallsign = data.Callsign
+			a.callsignCounts = map[string]int{
+				data.Callsign: 20,
+			}
+		}
+	}
+	currentCallsign := a.sessionCallsign
+	a.telemMutex.Unlock()
+
+	if currentCallsign != "" && data.Callsign != currentCallsign {
+		msg := fmt.Sprintf("APID 1: Discarded packet from unexpected callsign %s (expected %s)", data.Callsign, currentCallsign)
 		log.Print(msg)
 		runtime.EventsEmit(a.ctx, "log", msg)
 		return
@@ -115,6 +160,58 @@ func (a *App) handleAPID1(apid int, pkt []byte) {
 
 	// Notify frontend
 	a.broadcastTelemetry()
+
+	a.cfgMu.Lock()
+	sondehubEnabled := a.cfg.SondehubEnabled
+	cfgCopy := a.cfg
+	a.cfgMu.Unlock()
+
+	if sondehubEnabled && currentCallsign != "" {
+		go a.uploadToSondeHub(data, cfgCopy)
+	}
+
+	if a.centralUploader != nil {
+		gpsLockVal := data.GPSLock
+		if gpsLockVal == "" {
+			gpsLockVal = "none"
+		}
+		if gpsLockVal == "2D" {
+			gpsLockVal = "fix2d"
+		} else if gpsLockVal == "3D" {
+			gpsLockVal = "fix3d"
+		}
+
+		// Ensure we format the payload callsign correctly using SondeHub dynamic formatting rule: <callsign>_<payloadname> if payload name exists
+		payloadCallsign := data.Callsign
+		if pName := a.session.PayloadName(); pName != "" {
+			payloadCallsign = data.Callsign + "_" + pName
+		}
+
+		computedTimeStr := ""
+		if !data.ComputedTime.IsZero() {
+			computedTimeStr = data.ComputedTime.UTC().Format(time.RFC3339Nano)
+		} else {
+			computedTimeStr = time.Now().UTC().Format(time.RFC3339Nano)
+		}
+
+		a.centralUploader.Send(map[string]interface{}{
+			"type": "telemetry",
+			"apid": 1,
+			"packet": map[string]interface{}{
+				"callsign":         payloadCallsign,
+				"computed_time":    computedTimeStr,
+				"time_offset_10ms": data.TimeOffset,
+				"latitude":         data.Latitude,
+				"longitude":        data.Longitude,
+				"altitude_m":       data.Altitude,
+				"gps_sats":         data.GPSSats,
+				"gps_lock":         gpsLockVal,
+				"batt_voltage":     data.BattVoltage,
+				"temp_internal":    data.TempInternal,
+				"temp_external":    data.TempExternal,
+			},
+		})
+	}
 }
 
 func (a *App) handleAPID2(apid int, pkt []byte) {
@@ -171,6 +268,39 @@ func (a *App) handleAPID2(apid int, pkt []byte) {
 	}
 	a.session.SaveCSV(apid, "dynamic_telem", data.CSVHeader(), data.CSVRow())
 	a.broadcastTelemetry()
+
+	if a.centralUploader != nil {
+		a.telemMutex.Lock()
+		callsign := a.sessionCallsign
+		if callsign == "" {
+			callsign = "UNKNOWN"
+		}
+		a.telemMutex.Unlock()
+
+		packetData := make(map[string]interface{})
+		for k, v := range data.Raw {
+			packetData[k] = v
+		}
+		packetData["callsign"] = callsign
+		
+		computedTimeStr := ""
+		if !data.ComputedTime.IsZero() {
+			computedTimeStr = data.ComputedTime.UTC().Format(time.RFC3339Nano)
+		} else {
+			computedTimeStr = time.Now().UTC().Format(time.RFC3339Nano)
+		}
+		packetData["computed_time"] = computedTimeStr
+		packetData["time_offset_10ms"] = 0
+		if data.Name != "" {
+			packetData["name"] = data.Name
+		}
+
+		a.centralUploader.Send(map[string]interface{}{
+			"type": "telemetry",
+			"apid": 2,
+			"packet": packetData,
+		})
+	}
 }
 
 func (a *App) handleAPIDSSDV(apid int, pkt []byte) {
