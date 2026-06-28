@@ -100,6 +100,7 @@ jobs:
           fi
 
       - name: Set up UPX
+        if: ${{ !matrix.is_mac }}
         uses: crazy-max/ghaction-upx@v3
         with:
           install-only: true
