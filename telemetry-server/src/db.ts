@@ -1,6 +1,13 @@
 import { Database } from "bun:sqlite";
+import { mkdirSync } from "fs";
+import { join } from "path";
 
-const db = new Database("telemetry.db");
+export const DB_PATH = join(process.cwd(), "data", "telemetry.db");
+
+// Ensure data directory exists
+mkdirSync(join(process.cwd(), "data"), { recursive: true });
+
+const db = new Database(DB_PATH);
 
 db.run("PRAGMA foreign_keys = ON;");
 db.run("PRAGMA journal_mode = WAL;");

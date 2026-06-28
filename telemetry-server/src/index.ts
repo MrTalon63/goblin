@@ -1,5 +1,5 @@
 import { Elysia } from "elysia";
-import { initDb, saveReceiver, savePacket, getReceivers, getPackets, getPacketsCSV, getPacketsCSV_APID0, getPacketsCSV_APID1, getPacketsCSV_APID2, clearDb, checkpointDb } from "./db";
+import { initDb, saveReceiver, savePacket, getReceivers, getPackets, getPacketsCSV, getPacketsCSV_APID0, getPacketsCSV_APID1, getPacketsCSV_APID2, clearDb, checkpointDb, DB_PATH } from "./db";
 import { join } from "path";
 
 // Initialize SQLite database tables
@@ -101,7 +101,7 @@ const app = new Elysia()
     // Force a WAL checkpoint to flush all data from WAL file to main DB file before serving
     checkpointDb();
 
-    const dbFile = Bun.file("telemetry.db");
+    const dbFile = Bun.file(DB_PATH);
     return new Response(dbFile, {
       headers: {
         "Content-Type": "application/x-sqlite3",

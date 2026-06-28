@@ -1,0 +1,12 @@
+services:
+  telemetry-server:
+    container_name: goblin-telemetry-server
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      # Maps local ./data folder to persist telemetry.db, WAL, and logs
+      - ./data:/usr/src/app/data
+    environment:
+      # Change this password to unlock CSV/DB downloads on the admin dashboard
+      - ADMIN_PASSWORD=goblinadmin

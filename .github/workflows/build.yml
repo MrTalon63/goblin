@@ -138,11 +138,11 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/go/bin/nfpm
-          key: ${{ runner.os }}-${{ runner.arch }}-nfpm-v2.41.4
+          key: ${{ runner.os }}-${{ runner.arch }}-nfpm-latest
 
       - name: Install nfpm
         if: ${{ matrix.is_linux && steps.cache-nfpm.outputs.cache-hit != 'true' }}
-        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.41.4
+        run: go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
       - name: Install Wails CLI
         if: steps.cache-wails.outputs.cache-hit != 'true'

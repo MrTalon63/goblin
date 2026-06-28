@@ -1,0 +1,9 @@
+node_modules
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.git
+.github
+.gitignore
+README.md
