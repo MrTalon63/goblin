@@ -57,8 +57,8 @@ jobs:
           file: ./telemetry-server/Dockerfile
           push: true
           tags: |
-            ${{ steps.image-tag.outputs.image-id }}:${{ steps.image-tag.outputs.version }}
-            ${{ steps.image-tag.outputs.image-id }}:${{ steps.image-tag.outputs.sha_tag }}
-            ${{ github.ref == 'refs/heads/master' && format('{0}:nightly', steps.image-tag.outputs.image-id) || '' }}
+            ${{ steps.image-tag.outputs.image_id }}:${{ steps.image-tag.outputs.version }}
+            ${{ steps.image-tag.outputs.image_id }}:${{ steps.image-tag.outputs.sha_tag }}
+            ${{ github.ref == 'refs/heads/master' && format('{0}:nightly', steps.image-tag.outputs.image_id) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
